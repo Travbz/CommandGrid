@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"path/filepath"
 
 	"control-plane/pkg/config"
 	"control-plane/pkg/orchestrator"
@@ -25,6 +26,15 @@ func Up(args []string, logger *log.Logger) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
+	}
+
+	// Resolve relative host_path values in shared_dirs against the config
+	// file's directory so Docker gets absolute bind mount paths.
+	configDir, _ := filepath.Abs(filepath.Dir(*configPath))
+	for i, sd := range cfg.SharedDirs {
+		if !filepath.IsAbs(sd.HostPath) {
+			cfg.SharedDirs[i].HostPath = filepath.Join(configDir, sd.HostPath)
+		}
 	}
 
 	sDir := *secretsDir
