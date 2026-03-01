@@ -1,6 +1,6 @@
 # CommandGrid
 
-The orchestrator for the agent sandbox system. Reads a `sandbox.toml` config, manages a pluggable secret store, provisions sandboxes (Docker, Fly Machines, or Unikraft), coordinates [GhostProxy](https://github.com/Travbz/GhostProxy) for credential proxying, and spins up MCP tool sidecars. One command to boot a fully isolated agent environment with the hybrid credential model.
+The orchestrator for the agent sandbox system. Reads a `sandbox.yaml` config, manages a pluggable secret store, provisions sandboxes (Docker, Fly Machines, or Unikraft), coordinates [GhostProxy](https://github.com/Travbz/GhostProxy) for credential proxying, and spins up MCP tool sidecars. One command to boot a fully isolated agent environment with the hybrid credential model.
 
 ## System overview
 
@@ -92,7 +92,7 @@ cd ../CommandGrid && make build
 
 ### Adding credentials
 
-CommandGrid stores secrets in `~/.config/CommandGrid/secrets/`. Add them by name -- these names are what you reference in `sandbox.toml`.
+CommandGrid stores secrets in `~/.config/CommandGrid/secrets/`. Add them by name -- these names are what you reference in `sandbox.yaml`.
 
 ```bash
 # LLM key -- will be proxied, never enters the sandbox
@@ -126,7 +126,7 @@ cd examples/hello-world && ./run.sh
 
 What this does:
 
-1. Reads `sandbox.toml`, sees `anthropic_key` with `mode = "proxy"`
+1. Reads `sandbox.yaml`, sees `anthropic_key` with `mode = "proxy"`
 2. Generates a session token, registers it with the proxy (real key stays on host)
 3. Creates a Docker container with `ANTHROPIC_API_KEY=session-<token>` and `ANTHROPIC_BASE_URL=http://host.docker.internal:8090`
 4. Agent script calls Anthropic through the proxy
@@ -148,7 +148,7 @@ sequenceDiagram
     participant Tools as tool sidecars
 
     User->>CP: CommandGrid up --name my-agent
-    CP->>Store: Resolve secrets from sandbox.toml
+    CP->>Store: Resolve secrets from sandbox.yaml
     Store-->>CP: Values for inject secrets, keys for proxy secrets
 
     CP->>CP: Generate session tokens for proxy secrets
@@ -177,14 +177,14 @@ sequenceDiagram
 
 ## Hybrid credential model
 
-Each secret in `sandbox.toml` has a mode:
+Each secret in `sandbox.yaml` has a mode:
 
 | Mode | What happens | Good for |
 |---|---|---|
 | `proxy` | Real key stays on host. Sandbox gets a session token. LLM calls go through GhostProxy which injects the real key. | LLM API keys (high value, high risk) |
 | `inject` | Real value injected directly as an env var into the sandbox. | SSH keys, registry tokens, git credentials |
 
-```toml
+```yaml
 [secrets.anthropic_key]
 mode = "proxy"
 env_var = "ANTHROPIC_API_KEY"
@@ -207,9 +207,9 @@ Standard SDKs read these env vars and route through the proxy automatically. No 
 
 ---
 
-## Config (`sandbox.toml`)
+## Config (`sandbox.yaml`)
 
-```toml
+```yaml
 sandbox_mode = "docker"           # "docker", "fly", or "unikraft"
 image = "RootFS:latest"
 
@@ -271,7 +271,7 @@ The provisioner interface abstracts the sandbox backend. A single config switch 
 
 ```mermaid
 flowchart TD
-    Config[sandbox.toml] --> Switch{sandbox_mode}
+    Config[sandbox.yaml] --> Switch{sandbox_mode}
     Switch -->|docker| Docker[Docker Engine API<br/>Unix socket]
     Switch -->|fly| Fly[Fly Machines API<br/>Firecracker VMs]
     Switch -->|unikraft| UKC[Unikraft Cloud API<br/>kraft.cloud]
@@ -329,7 +329,7 @@ The `DelegatedStore` fetches secrets from a customer's own vault at runtime with
 
 When `[network] allowed_hosts` is set, the sandbox can only reach those domains. A lightweight forward proxy runs on the host and the sandbox routes all HTTP(S) traffic through it:
 
-```toml
+```yaml
 [network]
 allowed_hosts = ["api.anthropic.com", "*.github.com", "registry.npmjs.org"]
 proxy_port = 3128
@@ -346,7 +346,7 @@ proxy_port = 3128
 
 Tools are standalone Docker containers that speak MCP. They run as sidecars on the sandbox network.
 
-```toml
+```yaml
 [[tools]]
 name = "echo"
 image = "ghcr.io/yourorg/tool-echo:latest"
@@ -433,7 +433,7 @@ CommandGrid secrets rm --name old_key
 ### Running sandboxes (CLI)
 
 ```bash
-CommandGrid up --name my-agent              # reads sandbox.toml
+CommandGrid up --name my-agent              # reads sandbox.yaml
 CommandGrid status                          # list all sandboxes
 CommandGrid status --id <container-id>      # single sandbox
 CommandGrid down --id <container-id>        # stop and destroy
@@ -472,7 +472,7 @@ CommandGrid/
 │   └── helpers.go
 ├── pkg/
 │   ├── config/
-│   │   └── config.go                # sandbox.toml parsing + validation
+│   │   └── config.go                # sandbox.yaml parsing + validation
 │   ├── secrets/
 │   │   ├── iface.go                 # Store interface
 │   │   ├── store.go                 # FileStore (JSON file)
@@ -498,7 +498,7 @@ CommandGrid/
 │       └── profile.go               # customer profile + secret provider config
 ├── examples/
 │   └── hello-world/
-│       ├── sandbox.toml
+│       ├── sandbox.yaml
 │       ├── agent.sh
 │       └── run.sh
 ├── docs/

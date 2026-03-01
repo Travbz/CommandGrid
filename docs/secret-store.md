@@ -111,7 +111,7 @@ CommandGrid secrets rm --name old_key
 
 ## How the orchestrator uses it
 
-During `Up`, the orchestrator calls `store.Get(secretName)` for each secret in `sandbox.toml`:
+During `Up`, the orchestrator calls `store.Get(secretName)` for each secret in `sandbox.yaml`:
 
 - **inject mode**: returned value is set as an env var in the sandbox
 - **proxy mode**: returned value is sent to GhostProxy's session registry (never enters sandbox)

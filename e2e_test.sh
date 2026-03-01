@@ -138,31 +138,32 @@ log "Session revocation OK"
 
 log "Creating Docker sandbox..."
 
-# Write a test sandbox.toml.
-cat > /tmp/e2e-sandbox.toml << 'EOF'
-sandbox_mode = "docker"
-image = "sandbox-image:latest"
+# Write a test sandbox.yaml.
+cat > /tmp/e2e-sandbox.yaml << 'EOF'
+sandbox_mode: docker
+image: sandbox-image:latest
 
-[proxy]
-addr = ":18090"
+proxy:
+  addr: ":18090"
 
-[agent]
-command = "echo"
-args = ["hello from sandbox"]
-user = "root"
-workdir = "/workspace"
+agent:
+  command: echo
+  args:
+    - hello from sandbox
+  user: root
+  workdir: /workspace
 
-[secrets.anthropic_key]
-mode = "proxy"
-env_var = "ANTHROPIC_API_KEY"
-provider = "anthropic"
-
-[secrets.github_token]
-mode = "inject"
-env_var = "GITHUB_TOKEN"
+secrets:
+  anthropic_key:
+    mode: proxy
+    env_var: ANTHROPIC_API_KEY
+    provider: anthropic
+  github_token:
+    mode: inject
+    env_var: GITHUB_TOKEN
 EOF
 
-"$CP_BIN" up --config /tmp/e2e-sandbox.toml --name e2e-sandbox --secrets-dir "$SECRETS_DIR" && \
+"$CP_BIN" up --config /tmp/e2e-sandbox.yaml --name e2e-sandbox --secrets-dir "$SECRETS_DIR" && \
     log "Sandbox created and started OK" || \
     warn "Sandbox creation may have failed (expected if Docker socket permissions differ)"
 

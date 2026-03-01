@@ -19,7 +19,7 @@ import (
 func Serve(args []string, logger *log.Logger) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	addr := fs.String("addr", ":8091", "HTTP listen address")
-	configPath := fs.String("config", "sandbox.toml", "Path to sandbox.toml")
+	configPath := fs.String("config", "sandbox.yaml", "Path to sandbox.yaml")
 	secretsDir := fs.String("secrets-dir", "", "Path to secrets directory")
 	if err := fs.Parse(args); err != nil {
 		return err

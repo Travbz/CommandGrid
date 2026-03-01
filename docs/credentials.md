@@ -106,7 +106,7 @@ These env var names are the ones each SDK looks for out of the box. No agent-sid
 Simple. CommandGrid reads the real value from the secret store and sets it as an env var:
 
 ```
-sandbox.toml:
+sandbox.yaml:
   [secrets.github_token]
   mode = "inject"
   env_var = "GITHUB_TOKEN"
@@ -166,11 +166,11 @@ CommandGrid secrets list
 CommandGrid secrets remove anthropic_key
 ```
 
-### Referencing a secret in sandbox.toml
+### Referencing a secret in sandbox.yaml
 
 The key under `[secrets.*]` must match the name in the store:
 
-```toml
+```yaml
 [secrets.anthropic_key]    # Looks up "anthropic_key" in the secret store
 mode = "proxy"
 env_var = "ANTHROPIC_API_KEY"
