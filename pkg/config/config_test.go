@@ -7,35 +7,35 @@ import (
 )
 
 const validConfig = `
-sandbox_mode = "docker"
-image = "ghcr.io/myorg/sandbox-image:latest"
+sandbox_mode: docker
+image: ghcr.io/myorg/rootfs:latest
 
-[proxy]
-addr = ":8090"
+proxy:
+  addr: ":8090"
 
-[agent]
-command = "claude"
-args = ["--model", "sonnet"]
-user = "agent"
-workdir = "/workspace"
+agent:
+  command: claude
+  args:
+    - --model
+    - sonnet
+  user: agent
+  workdir: /workspace
 
-[secrets.anthropic_key]
-mode = "proxy"
-env_var = "ANTHROPIC_API_KEY"
-provider = "anthropic"
+secrets:
+  anthropic_key:
+    mode: proxy
+    env_var: ANTHROPIC_API_KEY
+    provider: anthropic
+  github_token:
+    mode: inject
+    env_var: GITHUB_TOKEN
 
-[secrets.github_token]
-mode = "inject"
-env_var = "GITHUB_TOKEN"
-
-[[shared_dirs]]
-host_path = "./workspace"
-guest_path = "/workspace"
-
-[[shared_dirs]]
-host_path = "./data"
-guest_path = "/data"
-read_only = true
+shared_dirs:
+  - host_path: ./workspace
+    guest_path: /workspace
+  - host_path: ./data
+    guest_path: /data
+    read_only: true
 `
 
 func TestLoad_ValidConfig(t *testing.T) {
@@ -49,7 +49,7 @@ func TestLoad_ValidConfig(t *testing.T) {
 	if cfg.SandboxMode != "docker" {
 		t.Errorf("SandboxMode = %q, want %q", cfg.SandboxMode, "docker")
 	}
-	if cfg.Image != "ghcr.io/myorg/sandbox-image:latest" {
+	if cfg.Image != "ghcr.io/myorg/rootfs:latest" {
 		t.Errorf("Image = %q", cfg.Image)
 	}
 	if cfg.Agent.Command != "claude" {
@@ -71,9 +71,9 @@ func TestLoad_ValidConfig(t *testing.T) {
 
 func TestLoad_MissingSandboxMode(t *testing.T) {
 	path := writeTemp(t, `
-image = "foo"
-[agent]
-command = "bar"
+image: foo
+agent:
+  command: bar
 `)
 	_, err := Load(path)
 	if err == nil {
@@ -83,10 +83,10 @@ command = "bar"
 
 func TestLoad_InvalidSandboxMode(t *testing.T) {
 	path := writeTemp(t, `
-sandbox_mode = "vmware"
-image = "foo"
-[agent]
-command = "bar"
+sandbox_mode: vmware
+image: foo
+agent:
+  command: bar
 `)
 	_, err := Load(path)
 	if err == nil {
@@ -96,13 +96,14 @@ command = "bar"
 
 func TestLoad_ProxySecretMissingProvider(t *testing.T) {
 	path := writeTemp(t, `
-sandbox_mode = "docker"
-image = "foo"
-[agent]
-command = "bar"
-[secrets.my_key]
-mode = "proxy"
-env_var = "MY_KEY"
+sandbox_mode: docker
+image: foo
+agent:
+  command: bar
+secrets:
+  my_key:
+    mode: proxy
+    env_var: MY_KEY
 `)
 	_, err := Load(path)
 	if err == nil {
@@ -111,7 +112,7 @@ env_var = "MY_KEY"
 }
 
 func TestLoad_FileNotFound(t *testing.T) {
-	_, err := Load("/nonexistent/path/sandbox.toml")
+	_, err := Load("/nonexistent/path/sandbox.yaml")
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}
@@ -120,7 +121,7 @@ func TestLoad_FileNotFound(t *testing.T) {
 func writeTemp(t *testing.T, content string) string {
 	t.Helper()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "sandbox.toml")
+	path := filepath.Join(dir, "sandbox.yaml")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatalf("writing temp config: %v", err)
 	}

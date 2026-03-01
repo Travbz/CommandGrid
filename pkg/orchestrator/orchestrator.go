@@ -365,7 +365,6 @@ func (o *Orchestrator) registerProxySession(token, provider, apiKey, upstreamURL
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+o.proxyToken)
-
 	resp, err := o.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("posting to proxy: %w", err)

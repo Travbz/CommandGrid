@@ -1,6 +1,6 @@
 # CommandGrid
 
-The orchestrator for the agent sandbox system. Reads a `sandbox.toml` config, manages a pluggable secret store, provisions sandboxes (Docker, Fly Machines, or Unikraft), coordinates [GhostProxy](https://github.com/Travbz/GhostProxy) for credential proxying, and spins up MCP tool sidecars. One command to boot a fully isolated agent environment with the hybrid credential model.
+The orchestrator for the agent sandbox system. Reads a `sandbox.yaml` config, manages a pluggable secret store, provisions sandboxes (Docker, Fly Machines, or Unikraft), coordinates [GhostProxy](https://github.com/Travbz/GhostProxy) for credential proxying, and spins up MCP tool sidecars. One command to boot a fully isolated agent environment with the hybrid credential model.
 
 ## System overview
 
@@ -75,7 +75,7 @@ cd CommandGrid
 ./setup.sh
 ```
 
-Builds all three core services, prompts for your Anthropic API key, and drops a ready-to-run hello-world example in `my-first-sandbox/`.
+Builds GhostProxy, RootFS, and CommandGrid (binary: `./build/control-plane`), verifies credentials are configured (.env or Bitwarden), and drops a ready-to-run hello-world example in `my-first-sandbox/`. Fails with instructions if `anthropic_key` is not in `.env`, `SECRET_ANTHROPIC_KEY`, or Bitwarden.
 
 For proxy-mode secrets, set an admin token used for GhostProxy registry calls:
 
@@ -86,30 +86,36 @@ export GHOSTPROXY_ADMIN_TOKEN="change-me"
 ### Manual setup
 
 ```bash
-# 1. Build the LLM proxy
+# 1. Build GhostProxy
 cd ../GhostProxy && make build
 
-# 2. Build the sandbox container image
+# 2. Build the rootfs container image
 cd ../RootFS && make image-local
 
-# 3. Build the control plane
+# 3. Build CommandGrid (control-plane binary)
 cd ../CommandGrid && make build
 ```
 
-### Adding credentials
+### Source-first local flow
 
-CommandGrid stores secrets in `~/.config/CommandGrid/secrets/`. Add them by name -- these names are what you reference in `sandbox.toml`.
+Use the built-in command flow for local development:
 
 ```bash
-# LLM key -- will be proxied, never enters the sandbox
-./build/CommandGrid secrets add --name anthropic_key --value "sk-ant-api03-..."
+# Build required local artifacts from source
+./build/control-plane build
 
-# Direct-inject secrets -- these go straight into the sandbox as env vars
-./build/CommandGrid secrets add --name github_token --value "ghp_..."
+# Bootstrap local YAML config and choose secret provider
+./build/control-plane onboard --secrets-provider bitwarden
 
-# Verify
-./build/CommandGrid secrets list
+# Preflight, start GhostProxy if needed, and run sandbox
+./build/control-plane run --config sandbox.yaml --name dev-agent
 ```
+
+`onboard` writes local config/profile files under `~/.config/control-plane/`.
+
+### Adding credentials
+
+Secrets come from env vars or a `.env` file (default). Use `SECRET_` + uppercase name: `SECRET_ANTHROPIC_KEY`, `SECRET_GITHUB_TOKEN`, etc. Or create a `.env` file with keys matching `sandbox.yaml` secret names (e.g. `anthropic_key=sk-ant-...`). See [docs/secrets-local-dev.md](docs/secrets-local-dev.md).
 
 ### Hello world
 
@@ -121,7 +127,7 @@ The `examples/hello-world/` directory proves the full flow end to end.
 
 # terminal 2 -- boot the sandbox
 cd examples/hello-world
-../../build/CommandGrid up --name hello-world
+../../build/control-plane up --name hello-world
 ```
 
 Or the all-in-one script:
@@ -132,7 +138,7 @@ cd examples/hello-world && ./run.sh
 
 What this does:
 
-1. Reads `sandbox.toml`, sees `anthropic_key` with `mode = "proxy"`
+1. Reads `sandbox.yaml`, sees `anthropic_key` with `mode = "proxy"`
 2. Generates a session token, registers it with the proxy (real key stays on host)
 3. Creates a Docker container with `ANTHROPIC_API_KEY=session-<token>` and `ANTHROPIC_BASE_URL=http://host.docker.internal:8090`
 4. Agent script calls Anthropic through the proxy
@@ -153,8 +159,8 @@ sequenceDiagram
     participant Sandbox as sandbox
     participant Tools as tool sidecars
 
-    User->>CP: CommandGrid up --name my-agent
-    CP->>Store: Resolve secrets from sandbox.toml
+    User->>CP: control-plane up --name my-agent
+    CP->>Store: Resolve secrets from sandbox.yaml
     Store-->>CP: Values for inject secrets, keys for proxy secrets
 
     CP->>CP: Generate session tokens for proxy secrets
@@ -183,22 +189,22 @@ sequenceDiagram
 
 ## Hybrid credential model
 
-Each secret in `sandbox.toml` has a mode:
+Each secret in `sandbox.yaml` has a mode:
 
 | Mode | What happens | Good for |
 |---|---|---|
 | `proxy` | Real key stays on host. Sandbox gets a session token. LLM calls go through GhostProxy which injects the real key. | LLM API keys (high value, high risk) |
 | `inject` | Real value injected directly as an env var into the sandbox. | SSH keys, registry tokens, git credentials |
 
-```toml
-[secrets.anthropic_key]
-mode = "proxy"
-env_var = "ANTHROPIC_API_KEY"
-provider = "anthropic"
-
-[secrets.github_token]
-mode = "inject"
-env_var = "GITHUB_TOKEN"
+```yaml
+secrets:
+  anthropic_key:
+    mode: proxy
+    env_var: ANTHROPIC_API_KEY
+    provider: anthropic
+  github_token:
+    mode: inject
+    env_var: GITHUB_TOKEN
 ```
 
 When a proxied secret is configured, CommandGrid injects two env vars per provider:
@@ -213,60 +219,64 @@ Standard SDKs read these env vars and route through the proxy automatically. No 
 
 ---
 
-## Config (`sandbox.toml`)
+## Config (`sandbox.yaml`)
 
-```toml
-sandbox_mode = "docker"           # "docker", "fly", or "unikraft"
-image = "RootFS:latest"
+```yaml
+sandbox_mode: docker              # docker, fly, or unikraft
+image: rootfs:latest
 
-[proxy]
-addr = ":8090"
+proxy:
+  addr: ":8090"
 
-[agent]
-command = "claude"
-args = ["--model", "sonnet"]
-user = "agent"
-workdir = "/workspace"
+agent:
+  command: claude
+  args:
+    - --model
+    - sonnet
+  user: agent
+  workdir: /workspace
 
 # Environment variables (plain, no secret management)
-[env]
-LOG_LEVEL = "debug"
-NODE_ENV = "production"
+env:
+  LOG_LEVEL: debug
+  NODE_ENV: production
 
 # Or load from a file
-env_file = ".env"
+env_file: .env
 
 # Secrets with injection modes
-[secrets.anthropic_key]
-mode = "proxy"
-env_var = "ANTHROPIC_API_KEY"
-provider = "anthropic"
-
-[secrets.github_token]
-mode = "inject"
-env_var = "GITHUB_TOKEN"
+secrets:
+  anthropic_key:
+    mode: proxy
+    env_var: ANTHROPIC_API_KEY
+    provider: anthropic
+  github_token:
+    mode: inject
+    env_var: GITHUB_TOKEN
 
 # Shared directories
-[[shared_dirs]]
-host_path = "./workspace"
-guest_path = "/workspace"
+shared_dirs:
+  - host_path: ./workspace
+    guest_path: /workspace
 
 # Resource limits
-[resources]
-memory = "512m"
-cpus = "1"
+resources:
+  memory: 512m
+  cpus: 1
 
 # MCP tool sidecars
-[[tools]]
-name = "echo"
-image = "ghcr.io/yourorg/tool-echo:latest"
-transport = "http"
-port = 8080
+tools:
+  - name: echo
+    image: ghcr.io/yourorg/tool-echo:latest
+    transport: http
+    port: 8080
 
 # Network restrictions (empty = unrestricted)
-[network]
-allowed_hosts = ["api.anthropic.com", "*.github.com"]
-proxy_port = 3128
+network:
+  allowed_hosts:
+    - api.anthropic.com
+    - "*.github.com"
+  proxy_port: 3128
 ```
 
 ---
@@ -277,7 +287,7 @@ The provisioner interface abstracts the sandbox backend. A single config switch 
 
 ```mermaid
 flowchart TD
-    Config[sandbox.toml] --> Switch{sandbox_mode}
+    Config[sandbox.yaml] --> Switch{sandbox_mode}
     Switch -->|docker| Docker[Docker Engine API<br/>Unix socket]
     Switch -->|fly| Fly[Fly Machines API<br/>Firecracker VMs]
     Switch -->|unikraft| UKC[Unikraft Cloud API<br/>kraft.cloud]
@@ -314,8 +324,8 @@ The secret store is pluggable. Multiple backends implement the same interface:
 ```mermaid
 flowchart LR
     CP[CommandGrid] --> IF{secrets.Store}
-    IF -->|local dev| FS[FileStore<br/>~/.config/.../secrets.json]
-    IF -->|CI / env| ES[EnvStore<br/>SECRET_* env vars]
+    IF -->|default| ES[EnvStore<br/>SECRET_* env / .env]
+    IF -->|local dev| BW[BitwardenStore<br/>bw CLI]
     IF -->|customer vault| DS[DelegatedStore<br/>AWS SM / Vault]
 
     style IF fill:#333,stroke:#999,color:#fff
@@ -323,8 +333,8 @@ flowchart LR
 
 | Backend | When to use | Set/Delete | Persistence |
 |---|---|---|---|
-| `FileStore` | Local dev, Pi | Yes | JSON file, 0600 perms |
-| `EnvStore` | CI pipelines, containers | No (read-only at runtime) | Env vars / .env file |
+| `EnvStore` | Default. Local dev, CI | No (read-only) | Env vars / .env file |
+| `BitwardenStore` | Bitwarden vault | No (read-only) | Bitwarden via `bw` CLI |
 | `DelegatedStore` | Multi-tenant production | No (customer manages) | AWS Secrets Manager or HashiCorp Vault |
 
 The `DelegatedStore` fetches secrets from a customer's own vault at runtime with a short TTL cache. Customers rotate and manage their own credentials -- CommandGrid never stores them.
@@ -335,7 +345,7 @@ The `DelegatedStore` fetches secrets from a customer's own vault at runtime with
 
 When `[network] allowed_hosts` is set, the sandbox can only reach those domains. A lightweight forward proxy runs on the host and the sandbox routes all HTTP(S) traffic through it:
 
-```toml
+```yaml
 [network]
 allowed_hosts = ["api.anthropic.com", "*.github.com", "registry.npmjs.org"]
 proxy_port = 3128
@@ -352,7 +362,7 @@ proxy_port = 3128
 
 Tools are standalone Docker containers that speak MCP. They run as sidecars on the sandbox network.
 
-```toml
+```yaml
 [[tools]]
 name = "echo"
 image = "ghcr.io/yourorg/tool-echo:latest"
@@ -378,7 +388,7 @@ Tool env values prefixed with `inject:` are resolved from the secret store.
 For production, CommandGrid can run as an HTTP server:
 
 ```bash
-CommandGrid serve --listen :8091
+./build/control-plane serve --listen :8091
 ```
 
 This exposes an internal API for the [api-gateway](https://github.com/Travbz/api-gateway):
@@ -429,26 +439,30 @@ Per-customer configuration for personalization:
 
 ### Managing secrets
 
-```bash
-CommandGrid secrets add --name anthropic_key --value "sk-ant-..."
-CommandGrid secrets add --name github_token --value "ghp_..."
-CommandGrid secrets list
-CommandGrid secrets rm --name old_key
-```
+Use env vars (`SECRET_ANTHROPIC_KEY`, etc.) or a `.env` file. See [docs/secrets-local-dev.md](docs/secrets-local-dev.md).
 
 ### Running sandboxes (CLI)
 
 ```bash
-CommandGrid up --name my-agent              # reads sandbox.toml
-CommandGrid status                          # list all sandboxes
-CommandGrid status --id <container-id>      # single sandbox
-CommandGrid down --id <container-id>        # stop and destroy
+./build/control-plane build                  # source build artifacts
+./build/control-plane onboard                # write local YAML config/profile
+./build/control-plane run --name my-agent    # preflight + proxy bootstrap + up
+./build/control-plane up --name my-agent     # reads sandbox.yaml
+./build/control-plane status                 # list all sandboxes
+./build/control-plane status --id <id>       # single sandbox
+./build/control-plane down --id <id>         # stop and destroy
 ```
+
+### Bitwarden secrets mode
+
+Use `--secrets-provider bitwarden` on `run/up/down/status/serve` to resolve
+secrets from Bitwarden via `bw` CLI (expects login/unlock state and optionally
+`BW_SESSION`).
 
 ### Running as a server
 
 ```bash
-CommandGrid serve --listen :8091
+./build/control-plane serve --listen :8091
 ```
 
 ---
@@ -456,7 +470,7 @@ CommandGrid serve --listen :8091
 ## Building
 
 ```bash
-make build    # builds to ./build/CommandGrid
+make build    # builds to ./build/control-plane
 make test     # runs all tests
 make lint     # golangci-lint
 make vet      # go vet
@@ -470,19 +484,23 @@ make vet      # go vet
 CommandGrid/
 ├── main.go
 ├── cmd/
+│   ├── build.go                     # build GhostProxy, rootfs, CommandGrid
+│   ├── onboard.go                   # bootstrap config, choose secrets provider
+│   ├── run.go                       # preflight + proxy + up
+│   ├── devconfig.go                 # dev config YAML
 │   ├── up.go                        # start a sandbox
 │   ├── down.go                      # stop + destroy
 │   ├── status.go                    # sandbox status / list
-│   ├── secrets.go                   # secrets add/rm/list
 │   ├── serve.go                     # HTTP server mode
 │   └── helpers.go
 ├── pkg/
 │   ├── config/
-│   │   └── config.go                # sandbox.toml parsing + validation
+│   │   └── config.go                # sandbox.yaml parsing + validation
 │   ├── secrets/
 │   │   ├── iface.go                 # Store interface
-│   │   ├── store.go                 # FileStore (JSON file)
 │   │   ├── env.go                   # EnvStore (env vars / .env file)
+│   │   ├── bitwarden.go             # BitwardenStore (bw CLI)
+│   │   ├── provider.go              # OpenStore factory
 │   │   ├── delegated.go             # DelegatedStore (AWS SM / Vault)
 │   │   └── session.go               # session token generation
 │   ├── provisioner/
@@ -504,7 +522,7 @@ CommandGrid/
 │       └── profile.go               # customer profile + secret provider config
 ├── examples/
 │   └── hello-world/
-│       ├── sandbox.toml
+│       ├── sandbox.yaml
 │       ├── agent.sh
 │       └── run.sh
 ├── docs/
@@ -513,6 +531,7 @@ CommandGrid/
 │   ├── credentials.md
 │   ├── provisioners.md
 │   ├── secret-store.md
+│   ├── secrets-local-dev.md
 │   └── PRD-discovery.md
 ├── setup.sh
 ├── Makefile
@@ -520,6 +539,7 @@ CommandGrid/
 ├── .releaserc.yaml
 └── .github/workflows/
     ├── ci.yaml
+    ├── e2e-hello-world.yaml
     └── release.yaml
 ```
 

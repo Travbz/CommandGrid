@@ -1,15 +1,15 @@
 # Configuration Reference
 
-All sandbox configuration lives in a single `sandbox.toml` file. CommandGrid reads this on every `up` command.
+All sandbox configuration lives in a single `sandbox.yaml` file. CommandGrid reads this on every `up` command.
 
 ## Full schema
 
-```toml
+```yaml
 # Required. Selects the provisioner backend.
 sandbox_mode = "docker"    # "docker", "fly", or "unikraft"
 
 # Required. Container image or VM image reference.
-image = "RootFS:latest"
+image = "rootfs:latest"
 
 # LLM proxy configuration.
 [proxy]
@@ -96,7 +96,7 @@ proxy_port = 3128
 
 A flat map of environment variables injected directly into the sandbox. No secret management -- these are plain key-value pairs.
 
-```toml
+```yaml
 [env]
 LOG_LEVEL = "debug"
 DATABASE_URL = "postgres://localhost/mydb"
@@ -170,9 +170,9 @@ If validation fails, the `up` command exits before provisioning.
 
 ### Minimal (hello world)
 
-```toml
+```yaml
 sandbox_mode = "docker"
-image = "RootFS:latest"
+image = "rootfs:latest"
 
 [proxy]
 addr = ":8090"
@@ -193,9 +193,9 @@ guest_path = "/workspace"
 
 ### Full production config
 
-```toml
+```yaml
 sandbox_mode = "fly"
-image = "ghcr.io/yourorg/RootFS:latest"
+image = "ghcr.io/yourorg/rootfs:latest"
 
 [proxy]
 addr = ":8090"

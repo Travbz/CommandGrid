@@ -179,7 +179,7 @@ Multiple `label` params are AND-ed.
 ```go
 type AgentRecord struct {
     ID        string            // sandbox/container ID
-    Name      string            // from sandbox.toml or CLI --name
+    Name      string            // from sandbox.yaml or CLI --name
     Status    string            // running, stopped, etc (from provisioner)
     IP        string            // container/VM IP
     Labels    map[string]string // mutable, set by the agent itself
@@ -205,15 +205,19 @@ provisioner.Sandbox.IP     -> AgentRecord.IP
 
 ## Config Changes
 
-### sandbox.toml
+### sandbox.yaml
 
 Add optional `labels` to the agent config:
 
-```toml
-[agent]
-command = "claude"
-args = ["--model", "sonnet"]
-labels = { role = "reviewer", project = "CommandGrid" }
+```yaml
+agent:
+  command: claude
+  args:
+    - --model
+    - sonnet
+  labels:
+    role: reviewer
+    project: CommandGrid
 ```
 
 These are the initial labels set at boot. The agent can update them at runtime via the API.
@@ -222,9 +226,9 @@ These are the initial labels set at boot. The agent can update them at runtime v
 
 Add a `discovery` section to the proxy config:
 
-```toml
-[discovery]
-addr = ":8091"
+```yaml
+discovery:
+  addr: ":8091"
 ```
 
 Default: `:8091`. The discovery API runs as a separate listener in the CommandGrid process (not inside GhostProxy — it needs access to the provisioner state).

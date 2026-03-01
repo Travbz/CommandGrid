@@ -106,7 +106,7 @@ These env var names are the ones each SDK looks for out of the box. No agent-sid
 Simple. CommandGrid reads the real value from the secret store and sets it as an env var:
 
 ```
-sandbox.toml:
+sandbox.yaml:
   [secrets.github_token]
   mode = "inject"
   env_var = "GITHUB_TOKEN"
@@ -143,34 +143,13 @@ Tokens are ephemeral. They exist only for the lifetime of a sandbox run and are 
 
 ## Configuring secrets
 
-### Adding a secret to the store
+Secrets come from env vars or a `.env` file (default provider). Set `SECRET_ANTHROPIC_KEY`, `SECRET_GITHUB_TOKEN`, etc., or create a `.env` file with keys matching the secret names in `sandbox.yaml`. See [secrets-local-dev.md](secrets-local-dev.md).
 
-```bash
-CommandGrid secrets add anthropic_key
-# Prompts for the value (or pipe it in):
-echo "sk-ant-api03-real-key" | CommandGrid secrets add anthropic_key
-```
-
-### Listing secrets
-
-```bash
-CommandGrid secrets list
-# Output: names only, never values
-# anthropic_key
-# github_token
-```
-
-### Removing a secret
-
-```bash
-CommandGrid secrets remove anthropic_key
-```
-
-### Referencing a secret in sandbox.toml
+### Referencing a secret in sandbox.yaml
 
 The key under `[secrets.*]` must match the name in the store:
 
-```toml
+```yaml
 [secrets.anthropic_key]    # Looks up "anthropic_key" in the secret store
 mode = "proxy"
 env_var = "ANTHROPIC_API_KEY"
