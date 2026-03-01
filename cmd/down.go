@@ -14,7 +14,7 @@ import (
 // Down implements the "down" subcommand: stop and destroy a sandbox.
 func Down(args []string, logger *log.Logger) error {
 	fs := flag.NewFlagSet("down", flag.ExitOnError)
-	configPath := fs.String("config", "sandbox.toml", "Path to sandbox.toml")
+	configPath := fs.String("config", "sandbox.yaml", "Path to sandbox.yaml")
 	id := fs.String("id", "", "Sandbox ID to stop")
 	secretsDir := fs.String("secrets-dir", "", "Path to secrets directory")
 	if err := fs.Parse(args); err != nil {

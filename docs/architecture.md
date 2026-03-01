@@ -100,7 +100,7 @@ sequenceDiagram
 
 The `Up` command in `pkg/orchestrator/orchestrator.go` runs these steps:
 
-1. **Resolve secrets.** For each secret in `sandbox.toml`:
+1. **Resolve secrets.** For each secret in `sandbox.yaml`:
    - `inject` mode: read real value from store, add to env map
    - `proxy` mode: generate session token, add token to env, set provider base URL
 
@@ -134,7 +134,7 @@ The `Down` command stops the container, destroys it, and cleans up tool sidecars
 
 ```
 pkg/
-├── config/          # sandbox.toml parsing + validation
+├── config/          # sandbox.yaml parsing + validation
 ├── secrets/
 │   ├── iface.go     # Store interface
 │   ├── store.go     # FileStore (JSON file)

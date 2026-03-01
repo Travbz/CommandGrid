@@ -25,7 +25,7 @@ cleanup() {
     log "Cleaning up..."
     # Stop the sandbox.
     if [[ -n "${SANDBOX_ID:-}" ]]; then
-        "$CP" down --config "$SCRIPT_DIR/sandbox.toml" --id "$SANDBOX_ID" 2>/dev/null || true
+        "$CP" down --config "$SCRIPT_DIR/sandbox.yaml" --id "$SANDBOX_ID" 2>/dev/null || true
     fi
     # Stop the proxy.
     if [[ -n "${PROXY_PID:-}" ]]; then
@@ -59,7 +59,7 @@ log "llm-proxy is running (pid=$PROXY_PID)"
 # Boot the sandbox.
 log "Booting sandbox..."
 cd "$SCRIPT_DIR"
-OUTPUT=$("$CP" up --config sandbox.toml --name hello-world 2>&1) || {
+OUTPUT=$("$CP" up --config sandbox.yaml --name hello-world 2>&1) || {
     echo "$OUTPUT"
     echo -e "${RED}Failed to boot sandbox${NC}"
     exit 1

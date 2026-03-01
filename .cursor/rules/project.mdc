@@ -31,14 +31,14 @@ coordinates the LLM proxy. CLI-driven.
 ## Package Layout
 
 - `cmd/` - CLI subcommands (up, down, status, secrets)
-- `pkg/config/` - sandbox.toml parsing
+- `pkg/config/` - sandbox.yaml parsing
 - `pkg/secrets/` - Encrypted secret store (age) and session token generation
 - `pkg/provisioner/` - Provisioner interface + Docker and Unikraft backends
 - `pkg/orchestrator/` - Boot sequence: secrets -> provision -> inject -> start
 
 ## Key Design Decisions
 
-1. **sandbox.toml config.** Single config file per project defines sandbox_mode,
+1. **sandbox.yaml config.** Single config file per project defines sandbox_mode,
    secrets (with proxy/inject mode), agent config, and shared dirs.
 2. **Hybrid credential model.** Each secret has a mode: "proxy" (control plane
    proxies via llm-proxy with session tokens) or "inject" (real value injected

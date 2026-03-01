@@ -17,13 +17,13 @@ type Provisioner interface {
 }
 ```
 
-The orchestrator doesn't care which provisioner is active. It calls the same methods regardless. The `sandbox_mode` field in `sandbox.toml` selects the backend.
+The orchestrator doesn't care which provisioner is active. It calls the same methods regardless. The `sandbox_mode` field in `sandbox.yaml` selects the backend.
 
 ## Runtime comparison
 
 ```mermaid
 flowchart TD
-    Config[sandbox.toml] --> Switch{sandbox_mode}
+    Config[sandbox.yaml] --> Switch{sandbox_mode}
     Switch -->|docker| Docker[Docker Engine API]
     Switch -->|fly| Fly[Fly Machines API]
     Switch -->|unikraft| UKC[Unikraft Cloud API]
@@ -147,9 +147,9 @@ Talks to the kraft.cloud REST API. Requires `UKC_TOKEN` env var. Fastest boot ti
 
 ## Switching between provisioners
 
-Change `sandbox_mode` in `sandbox.toml`:
+Change `sandbox_mode` in `sandbox.yaml`:
 
-```toml
+```yaml
 # Local dev / Raspberry Pi
 sandbox_mode = "docker"
 

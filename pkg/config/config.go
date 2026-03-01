@@ -1,4 +1,4 @@
-// Package config handles parsing of sandbox.toml configuration files.
+// Package config handles parsing of sandbox.yaml configuration files.
 package config
 
 import (
@@ -7,46 +7,46 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"gopkg.in/yaml.v3"
 )
 
 // Config is the top-level sandbox configuration.
 type Config struct {
 	// SandboxMode selects the provisioner backend: "docker", "unikraft", or "fly".
-	SandboxMode string `toml:"sandbox_mode"`
+	SandboxMode string `yaml:"sandbox_mode"`
 
 	// Image is the sandbox container/VM image reference.
-	Image string `toml:"image"`
+	Image string `yaml:"image"`
 
 	// Proxy configures the LLM proxy.
-	Proxy ProxyConfig `toml:"proxy"`
+	Proxy ProxyConfig `yaml:"proxy"`
 
 	// Agent configures the agent running inside the sandbox.
-	Agent AgentConfig `toml:"agent"`
+	Agent AgentConfig `yaml:"agent"`
 
 	// Secrets defines credentials with their injection mode.
-	Secrets map[string]SecretConfig `toml:"secrets"`
+	Secrets map[string]SecretConfig `yaml:"secrets"`
 
 	// SharedDirs defines host directories to mount into the sandbox.
-	SharedDirs []SharedDir `toml:"shared_dirs"`
+	SharedDirs []SharedDir `yaml:"shared_dirs"`
 
 	// Env is a flat map of environment variables injected directly into the
 	// sandbox. These are plain key-value pairs with no secret management.
-	Env map[string]string `toml:"env"`
+	Env map[string]string `yaml:"env"`
 
 	// EnvFile is an optional path to a .env file. Key-value pairs from this
 	// file are merged into the sandbox environment. Values in [env] take
 	// precedence over values from env_file.
-	EnvFile string `toml:"env_file"`
+	EnvFile string `yaml:"env_file"`
 
 	// Resources configures container resource limits.
-	Resources ResourceConfig `toml:"resources"`
+	Resources ResourceConfig `yaml:"resources"`
 
 	// Tools defines MCP tool sidecars to start alongside the agent.
-	Tools []ToolConfig `toml:"tools"`
+	Tools []ToolConfig `yaml:"tools"`
 
 	// Network configures sandbox networking restrictions.
-	Network NetworkConfig `toml:"network"`
+	Network NetworkConfig `yaml:"network"`
 }
 
 // NetworkConfig controls outbound network access from the sandbox.
@@ -54,32 +54,32 @@ type NetworkConfig struct {
 	// AllowedHosts is a list of host patterns the sandbox may reach.
 	// Supports exact match ("api.anthropic.com") and wildcard subdomains
 	// ("*.anthropic.com"). An empty list means no outbound restrictions.
-	AllowedHosts []string `toml:"allowed_hosts"`
+	AllowedHosts []string `yaml:"allowed_hosts"`
 
 	// ProxyPort is the listen port for the allowlist proxy sidecar
 	// (default: 3128). Only used when AllowedHosts is non-empty.
-	ProxyPort int `toml:"proxy_port,omitempty"`
+	ProxyPort int `yaml:"proxy_port,omitempty"`
 }
 
 // ProxyConfig configures the LLM proxy.
 type ProxyConfig struct {
 	// Addr is the listen address for the LLM proxy (default: ":8090").
-	Addr string `toml:"addr"`
+	Addr string `yaml:"addr"`
 }
 
 // AgentConfig configures the agent inside the sandbox.
 type AgentConfig struct {
 	// Command is the agent binary to exec (e.g. "claude", "opencode").
-	Command string `toml:"command"`
+	Command string `yaml:"command"`
 
 	// Args are additional arguments passed to the agent command.
-	Args []string `toml:"args"`
+	Args []string `yaml:"args"`
 
 	// User is the unprivileged user the agent runs as (default: "agent").
-	User string `toml:"user"`
+	User string `yaml:"user"`
 
 	// Workdir is the working directory inside the sandbox (default: "/workspace").
-	Workdir string `toml:"workdir"`
+	Workdir string `yaml:"workdir"`
 }
 
 // SecretConfig defines a single secret and how it's injected.
@@ -87,62 +87,62 @@ type SecretConfig struct {
 	// Mode is "proxy" or "inject".
 	// - "proxy": control plane proxies requests via llm-proxy with a session token.
 	// - "inject": real value is injected as an env var into the sandbox.
-	Mode string `toml:"mode"`
+	Mode string `yaml:"mode"`
 
 	// EnvVar is the environment variable name inside the sandbox.
 	// For "proxy" mode, this receives a session token (or base URL).
 	// For "inject" mode, this receives the real secret value.
-	EnvVar string `toml:"env_var"`
+	EnvVar string `yaml:"env_var"`
 
 	// Provider is the LLM provider name (only for mode="proxy").
 	// One of: "anthropic", "openai", "ollama".
-	Provider string `toml:"provider,omitempty"`
+	Provider string `yaml:"provider,omitempty"`
 
 	// UpstreamURL is an optional override for the provider API URL.
-	UpstreamURL string `toml:"upstream_url,omitempty"`
+	UpstreamURL string `yaml:"upstream_url,omitempty"`
 }
 
 // SharedDir defines a host directory to mount into the sandbox.
 type SharedDir struct {
 	// HostPath is the path on the host.
-	HostPath string `toml:"host_path"`
+	HostPath string `yaml:"host_path"`
 
 	// GuestPath is the mount point inside the sandbox.
-	GuestPath string `toml:"guest_path"`
+	GuestPath string `yaml:"guest_path"`
 
 	// ReadOnly makes the mount read-only (default: false).
-	ReadOnly bool `toml:"read_only,omitempty"`
+	ReadOnly bool `yaml:"read_only,omitempty"`
 }
 
 // ResourceConfig defines container resource limits.
 type ResourceConfig struct {
 	// Memory is the memory limit (e.g. "512m", "1g"). Empty means no limit.
-	Memory string `toml:"memory,omitempty"`
+	Memory string `yaml:"memory,omitempty"`
 
 	// CPUs is the CPU limit (e.g. "0.5", "2"). Empty means no limit.
-	CPUs string `toml:"cpus,omitempty"`
+	CPUs string `yaml:"cpus,omitempty"`
 }
 
 // ToolConfig defines an MCP tool sidecar container.
 type ToolConfig struct {
 	// Name is the tool's identifier, used as the container name on the sandbox network.
-	Name string `toml:"name"`
+	Name string `yaml:"name"`
 
 	// Image is the Docker image for the tool.
-	Image string `toml:"image"`
+	Image string `yaml:"image"`
 
 	// Transport is the MCP transport: "stdio" or "http".
-	Transport string `toml:"transport"`
+	Transport string `yaml:"transport"`
 
 	// Port is the port the tool listens on (only for http transport).
-	Port int `toml:"port,omitempty"`
+	Port int `yaml:"port,omitempty"`
 
 	// Env is tool-specific environment variables. Values prefixed with
 	// "inject:" are resolved from the secret store.
-	Env map[string]string `toml:"env"`
+	Env map[string]string `yaml:"env"`
 }
 
-// Load reads and parses a sandbox.toml configuration file.
+// Load reads and parses a sandbox.yaml configuration file.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -150,7 +150,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := toml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 

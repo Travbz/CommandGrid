@@ -14,7 +14,7 @@ import (
 // Status implements the "status" subcommand: show sandbox status.
 func Status(args []string, logger *log.Logger) error {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
-	configPath := fs.String("config", "sandbox.toml", "Path to sandbox.toml")
+	configPath := fs.String("config", "sandbox.yaml", "Path to sandbox.yaml")
 	id := fs.String("id", "", "Sandbox ID (if empty, lists all)")
 	secretsDir := fs.String("secrets-dir", "", "Path to secrets directory")
 	if err := fs.Parse(args); err != nil {

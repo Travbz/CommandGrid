@@ -16,7 +16,7 @@ import (
 // Up implements the "up" subcommand: start a sandbox.
 func Up(args []string, logger *log.Logger) error {
 	fs := flag.NewFlagSet("up", flag.ExitOnError)
-	configPath := fs.String("config", "sandbox.toml", "Path to sandbox.toml")
+	configPath := fs.String("config", "sandbox.yaml", "Path to sandbox.yaml")
 	name := fs.String("name", "sandbox", "Sandbox name")
 	secretsDir := fs.String("secrets-dir", "", "Path to secrets directory (default: ~/.config/control-plane/secrets)")
 	if err := fs.Parse(args); err != nil {
