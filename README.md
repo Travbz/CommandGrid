@@ -77,6 +77,12 @@ cd CommandGrid
 
 Builds all three core services, prompts for your Anthropic API key, and drops a ready-to-run hello-world example in `my-first-sandbox/`.
 
+For proxy-mode secrets, set an admin token used for GhostProxy registry calls:
+
+```bash
+export GHOSTPROXY_ADMIN_TOKEN="change-me"
+```
+
 ### Manual setup
 
 ```bash
